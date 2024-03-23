@@ -51,6 +51,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
+name = "claym"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "57d0ea5ab37f28af50905cf50ee972608a72e6e6147391d15a47245b7a7f9842"
+
+[[package]]
 name = "fallible-iterator"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -118,6 +124,7 @@ name = "mello"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "claym",
  "parking_lot",
  "rusqlite",
  "serde",

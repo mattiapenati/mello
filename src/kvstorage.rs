@@ -100,27 +100,27 @@ impl KVStorage {
     }
 
     /// Get a connection with exclusive write permission.
-    pub fn write(&self) -> WriteGuard<'_> {
+    pub fn write(&self) -> WriteConn<'_> {
         let conn = self.inner.write.lock();
-        WriteGuard { conn }
+        WriteConn { conn }
     }
 
     /// Get a connection with read-only permission.
-    pub fn read(&self) -> Result<ReadGuard<'_>> {
+    pub fn read(&self) -> Result<ReadConn<'_>> {
         let conn = self.inner.read.get_or_try(|| {
             let flags = read_flags();
             self.inner.options.connect(flags)
         })?;
-        Ok(ReadGuard { conn })
+        Ok(ReadConn { conn })
     }
 }
 
 /// RAII structure used to release a connection with exclusive write permission.
-pub struct WriteGuard<'a> {
+pub struct WriteConn<'a> {
     conn: MutexGuard<'a, rusqlite::Connection>,
 }
 
-impl<'a> WriteGuard<'a> {
+impl<'a> WriteConn<'a> {
     /// Get the value of key.
     pub fn get<K, V>(&self, key: K) -> Result<Option<V>>
     where
@@ -199,11 +199,11 @@ impl<'a> WriteTx<'a> {
 }
 
 /// RAII structure used to release a thread-local connection with read-only permission.
-pub struct ReadGuard<'a> {
+pub struct ReadConn<'a> {
     conn: &'a rusqlite::Connection,
 }
 
-impl<'a> ReadGuard<'a> {
+impl<'a> ReadConn<'a> {
     /// Get the value of key.
     #[inline(always)]
     pub fn get<K, V>(&self, key: K) -> Result<Option<V>>
@@ -289,4 +289,43 @@ fn generate_random_name() -> String {
     let b = random();
 
     format!("{a:016x}-{b:016x}")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use claym::*;
+
+    #[test]
+    fn set_and_get() {
+        let kv = assert_ok!(KVStorage::in_memory());
+        let wconn = kv.write();
+        let rconn = assert_ok!(kv.read());
+
+        let value: Option<usize> = assert_ok!(rconn.get("key"));
+        assert_none!(value);
+
+        assert_ok!(wconn.set("key", &1_usize));
+
+        let value: Option<usize> = assert_ok!(rconn.get("key"));
+        assert_some_eq!(value, 1);
+    }
+
+    #[test]
+    fn delete() {
+        let kv = assert_ok!(KVStorage::in_memory());
+        let wconn = kv.write();
+        let rconn = assert_ok!(kv.read());
+
+        assert_ok!(wconn.set("key", &1_usize));
+
+        let value: Option<usize> = assert_ok!(rconn.get("key"));
+        assert_some_eq!(value, 1);
+
+        assert_ok!(wconn.del("key"));
+
+        let value: Option<usize> = assert_ok!(rconn.get("key"));
+        assert_none!(value);
+    }
 }
