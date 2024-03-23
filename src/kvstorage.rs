@@ -1,4 +1,4 @@
-//! A simple implementation of a key-value storage based on SQLite.
+//! An implementation of a key-value storage based on SQLite.
 
 use std::{
     fmt::Display,
@@ -20,13 +20,21 @@ enum ConnectionOptions {
 
 impl ConnectionOptions {
     fn connect(&self, flags: rusqlite::OpenFlags) -> rusqlite::Result<rusqlite::Connection> {
-        match self {
+        let conn = match self {
             Self::Memory(name) => rusqlite::Connection::open_with_flags(
                 format!("file:{name}?mode=memory&cache=shared"),
                 flags,
-            ),
-            Self::File(path) => rusqlite::Connection::open_with_flags(path, flags),
-        }
+            )?,
+            Self::File(path) => rusqlite::Connection::open_with_flags(path, flags)?,
+        };
+
+        conn.pragma_update(None, "journal_mode", "WAL")?;
+        conn.pragma_update(None, "busy_timeout", 5000)?;
+        conn.pragma_update(None, "synchronous", "NORMAL")?;
+        conn.pragma_update(None, "foreign_keys", true)?;
+        conn.pragma_update(None, "temp_store", "memory")?;
+
+        Ok(conn)
     }
 }
 
@@ -48,6 +56,17 @@ struct Inner {
     read: ThreadLocal<rusqlite::Connection>,
 }
 
+impl std::fmt::Debug for KVStorage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut fmt = f.debug_struct("KVStorage");
+        match &self.inner.options {
+            ConnectionOptions::Memory(name) => fmt.field("memory", name),
+            ConnectionOptions::File(path) => fmt.field("file", path),
+        }
+        .finish()
+    }
+}
+
 impl KVStorage {
     /// Create a new persistent key-value storage on disk.
     pub fn open<P: AsRef<Path>>(path: P) -> Result<Self> {
@@ -57,8 +76,8 @@ impl KVStorage {
     }
 
     /// Create a new in-memory key-value storage.
-    pub fn in_memory(name: &str) -> Result<Self> {
-        let name = name.to_string();
+    pub fn in_memory() -> Result<Self> {
+        let name = generate_random_name();
         let options = ConnectionOptions::Memory(name);
         Self::open_with_options(options)
     }
@@ -120,9 +139,18 @@ impl<'a> WriteGuard<'a> {
         set(&self.conn, key, value)
     }
 
+    /// Remove the specified key.
+    pub fn del<K>(&self, key: K) -> Result<()>
+    where
+        K: Display,
+    {
+        del(&self.conn, key)
+    }
+
     /// Begin a new transaction.
     pub fn transaction(&mut self) -> Result<WriteTx<'_>> {
-        let tx = self.conn.transaction()?;
+        let behavior = rusqlite::TransactionBehavior::Immediate;
+        let tx = self.conn.transaction_with_behavior(behavior)?;
         Ok(WriteTx { tx })
     }
 }
@@ -149,6 +177,14 @@ impl<'a> WriteTx<'a> {
         V: Serialize,
     {
         set(&self.tx, key, value)
+    }
+
+    /// Remove the specified key.
+    pub fn del<K>(&self, key: K) -> Result<()>
+    where
+        K: Display,
+    {
+        del(&self.tx, key)
     }
 
     /// Consumes and commits the transaction.
@@ -234,4 +270,23 @@ where
         (key.to_string(), serialized_value),
     )?;
     Ok(())
+}
+
+/// Remove the specified key.
+fn del<K>(conn: &rusqlite::Connection, key: K) -> Result<()>
+where
+    K: Display,
+{
+    conn.execute("DELETE FROM kv WHERE key = ?1", (key.to_string(),))?;
+    Ok(())
+}
+
+/// Generate a new random name for in-memory database.
+fn generate_random_name() -> String {
+    use crate::rand::random;
+
+    let a = random();
+    let b = random();
+
+    format!("{a:016x}-{b:016x}")
 }
