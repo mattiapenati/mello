@@ -107,7 +107,7 @@ impl Trace {
             .from_env_lossy();
         let fmt_layer = fmt::layer()
             .with_writer(writer)
-            .with_span_events(FmtSpan::ENTER | FmtSpan::EXIT);
+            .with_span_events(FmtSpan::NEW | FmtSpan::CLOSE);
 
         tracing_subscriber::registry()
             .with(fmt_layer)
