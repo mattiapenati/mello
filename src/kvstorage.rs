@@ -127,7 +127,7 @@ impl<'a> WriteConn<'a> {
         K: Display,
         V: DeserializeOwned,
     {
-        get(&self.conn, key)
+        get(&self.conn, &key.to_string())
     }
 
     /// Set the value of key.
@@ -136,7 +136,7 @@ impl<'a> WriteConn<'a> {
         K: Display,
         V: ?Sized + Serialize,
     {
-        set(&self.conn, key, value)
+        set(&self.conn, &key.to_string(), value)
     }
 
     /// Remove the specified key.
@@ -144,7 +144,19 @@ impl<'a> WriteConn<'a> {
     where
         K: Display,
     {
-        del(&self.conn, key)
+        del(&self.conn, &key.to_string())
+    }
+
+    /// Remove the specified key and return the stored value.
+    pub fn extract<K, V>(&mut self, key: K) -> Result<Option<V>>
+    where
+        K: Display,
+        V: DeserializeOwned,
+    {
+        let tx = self.transaction()?;
+        let value = tx.extract(key)?;
+        tx.commit()?;
+        Ok(value)
     }
 
     /// Begin a new transaction.
@@ -167,7 +179,7 @@ impl<'a> WriteTx<'a> {
         K: Display,
         V: DeserializeOwned,
     {
-        get(&self.tx, key)
+        get(&self.tx, &key.to_string())
     }
 
     /// Set the value of key.
@@ -176,7 +188,7 @@ impl<'a> WriteTx<'a> {
         K: Display,
         V: ?Sized + Serialize,
     {
-        set(&self.tx, key, value)
+        set(&self.tx, &key.to_string(), value)
     }
 
     /// Remove the specified key.
@@ -184,7 +196,19 @@ impl<'a> WriteTx<'a> {
     where
         K: Display,
     {
-        del(&self.tx, key)
+        del(&self.tx, &key.to_string())
+    }
+
+    /// Remove the specified key and return the stored value.
+    pub fn extract<K, V>(&self, key: K) -> Result<Option<V>>
+    where
+        K: Display,
+        V: DeserializeOwned,
+    {
+        let key = key.to_string();
+        let value = self.get(&key)?;
+        self.del(&key)?;
+        Ok(value)
     }
 
     /// Consumes and commits the transaction.
@@ -211,7 +235,7 @@ impl<'a> ReadConn<'a> {
         K: Display,
         V: DeserializeOwned,
     {
-        get(self.conn, key)
+        get(self.conn, &key.to_string())
     }
 }
 
@@ -242,16 +266,13 @@ fn init(conn: &mut rusqlite::Connection) -> Result<()> {
 }
 
 /// Get the value of key.
-fn get<K, V>(conn: &rusqlite::Connection, key: K) -> Result<Option<V>>
+fn get<V>(conn: &rusqlite::Connection, key: &str) -> Result<Option<V>>
 where
-    K: Display,
     V: DeserializeOwned,
 {
-    conn.query_row(
-        "SELECT value FROM kv WHERE KEY = ?1",
-        (key.to_string(),),
-        |row| row.get::<_, String>("value"),
-    )
+    conn.query_row("SELECT value FROM kv WHERE KEY = ?1", (key,), |row| {
+        row.get::<_, String>("value")
+    })
     .optional()?
     .map(|value| serde_json::from_str::<V>(&value))
     .transpose()
@@ -259,25 +280,21 @@ where
 }
 
 /// Set the value of key.
-fn set<K, V>(conn: &rusqlite::Connection, key: K, value: &V) -> Result<()>
+fn set<V>(conn: &rusqlite::Connection, key: &str, value: &V) -> Result<()>
 where
-    K: Display,
     V: ?Sized + Serialize,
 {
     let serialized_value = serde_json::to_string(value)?;
     conn.execute(
         "INSERT OR REPLACE INTO kv (key, value) VALUES (?1, ?2)",
-        (key.to_string(), serialized_value),
+        (key, serialized_value),
     )?;
     Ok(())
 }
 
 /// Remove the specified key.
-fn del<K>(conn: &rusqlite::Connection, key: K) -> Result<()>
-where
-    K: Display,
-{
-    conn.execute("DELETE FROM kv WHERE key = ?1", (key.to_string(),))?;
+fn del(conn: &rusqlite::Connection, key: &str) -> Result<()> {
+    conn.execute("DELETE FROM kv WHERE key = ?1", (key,))?;
     Ok(())
 }
 
@@ -326,6 +343,20 @@ mod tests {
         assert_ok!(wconn.del("key"));
 
         let value: Option<usize> = assert_ok!(rconn.get("key"));
+        assert_none!(value);
+    }
+
+    #[test]
+    fn extract() {
+        let kv = assert_ok!(KVStorage::in_memory());
+        let mut wconn = kv.write();
+
+        assert_ok!(wconn.set("key", &1_usize));
+
+        let value: Option<usize> = assert_ok!(wconn.extract("key"));
+        assert_some_eq!(value, 1);
+
+        let value: Option<usize> = assert_ok!(wconn.extract("key"));
         assert_none!(value);
     }
 }
