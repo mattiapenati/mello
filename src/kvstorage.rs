@@ -134,7 +134,7 @@ impl<'a> WriteConn<'a> {
     pub fn set<K, V>(&self, key: K, value: &V) -> Result<()>
     where
         K: Display,
-        V: Serialize,
+        V: ?Sized + Serialize,
     {
         set(&self.conn, key, value)
     }
@@ -174,7 +174,7 @@ impl<'a> WriteTx<'a> {
     pub fn set<K, V>(&self, key: K, value: &V) -> Result<()>
     where
         K: Display,
-        V: Serialize,
+        V: ?Sized + Serialize,
     {
         set(&self.tx, key, value)
     }
@@ -262,7 +262,7 @@ where
 fn set<K, V>(conn: &rusqlite::Connection, key: K, value: &V) -> Result<()>
 where
     K: Display,
-    V: Serialize,
+    V: ?Sized + Serialize,
 {
     let serialized_value = serde_json::to_string(value)?;
     conn.execute(
