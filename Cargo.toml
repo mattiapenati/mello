@@ -7,7 +7,6 @@ edition = "2021"
 license = "Apache-2.0 OR MIT"
 
 [dependencies]
-anyhow = { version = "1.0.81", optional = true }
 once_cell = { version = "1.19.0", optional = true, features = ["parking_lot"] }
 parking_lot = { version = "0.12.1", optional = true }
 rusqlite = { version = "0.31.0", optional = true }
@@ -32,7 +31,6 @@ claym = "0.5.1"
 
 [features]
 kvstorage = [
-  "dep:anyhow",
   "dep:parking_lot",
   "dep:rusqlite",
   "dep:serde",
@@ -40,7 +38,6 @@ kvstorage = [
   "dep:thread_local",
 ]
 trace = [
-  "dep:anyhow",
   "dep:once_cell",
   "dep:serde",
   "dep:tracing",

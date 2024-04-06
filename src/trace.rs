@@ -7,7 +7,6 @@ use std::{
     path::PathBuf,
 };
 
-use anyhow::Result;
 use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};
 use tracing::Level;
@@ -66,7 +65,7 @@ pub enum TraceOutput {
 ///
 /// Setup the event writer with the given configuration. The level filter can be
 /// changed at runtime using the enviroment variable `RUST_LOG`.
-pub fn init(config: &TraceConfig) -> Result<()> {
+pub fn init(config: &TraceConfig) -> std::io::Result<()> {
     static TRACE: OnceCell<Trace> = OnceCell::new();
     TRACE.get_or_try_init(|| Trace::new(config))?;
 
@@ -80,7 +79,7 @@ struct Trace {
 }
 
 impl Trace {
-    fn new(config: &TraceConfig) -> Result<Self> {
+    fn new(config: &TraceConfig) -> std::io::Result<Self> {
         let level = match config.level {
             TraceLevel::Trace => Level::TRACE,
             TraceLevel::Debug => Level::DEBUG,
@@ -112,7 +111,8 @@ impl Trace {
         tracing_subscriber::registry()
             .with(fmt_layer)
             .with(env_filter)
-            .try_init()?;
+            .try_init()
+            .expect("failed to set global default subscriber");
 
         Ok(Self {
             appender_guard: guard,

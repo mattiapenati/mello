@@ -6,7 +6,6 @@ use std::{
     sync::Arc,
 };
 
-use anyhow::Result;
 use parking_lot::{Mutex, MutexGuard};
 use rusqlite::OptionalExtension;
 use serde::{de::DeserializeOwned, Serialize};
@@ -37,6 +36,59 @@ impl ConnectionOptions {
         Ok(conn)
     }
 }
+
+/// Possible errors from [`KVStorage`].
+pub enum Error {
+    Sqlite(rusqlite::Error),
+    Json(serde_json::Error),
+}
+
+impl From<rusqlite::Error> for Error {
+    #[inline(always)]
+    fn from(err: rusqlite::Error) -> Self {
+        Self::Sqlite(err)
+    }
+}
+
+impl From<serde_json::Error> for Error {
+    #[inline(always)]
+    fn from(err: serde_json::Error) -> Self {
+        Self::Json(err)
+    }
+}
+
+impl std::fmt::Debug for Error {
+    #[inline(always)]
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Sqlite(err) => std::fmt::Debug::fmt(err, f),
+            Self::Json(err) => std::fmt::Debug::fmt(err, f),
+        }
+    }
+}
+
+impl std::fmt::Display for Error {
+    #[inline(always)]
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Sqlite(err) => std::fmt::Display::fmt(err, f),
+            Self::Json(err) => std::fmt::Display::fmt(err, f),
+        }
+    }
+}
+
+impl std::error::Error for Error {
+    #[inline(always)]
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Sqlite(err) => std::error::Error::source(err),
+            Self::Json(err) => std::error::Error::source(err),
+        }
+    }
+}
+
+/// A type definition of the result returned by [`KVStorage`]
+pub type Result<T> = std::result::Result<T, Error>;
 
 /// A simple implementation of a key-value storage based on SQLite.
 ///
