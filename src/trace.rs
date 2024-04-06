@@ -1,6 +1,6 @@
 //! Tracing initialization of writer for [`tracing`] events.
 //!
-//! [`tracing`]: https://docs.rs/tracing/latest/tracing/
+//! [`tracing`]: https://docs.rs/tracing/
 
 use std::{
     io::{BufWriter, Write},
@@ -106,7 +106,9 @@ impl Trace {
             .from_env_lossy();
         let fmt_layer = fmt::layer()
             .with_writer(writer)
-            .with_span_events(FmtSpan::NEW | FmtSpan::CLOSE);
+            .with_span_events(FmtSpan::NEW | FmtSpan::CLOSE)
+            .with_line_number(true)
+            .with_file(true);
 
         tracing_subscriber::registry()
             .with(fmt_layer)
