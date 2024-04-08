@@ -107,7 +107,7 @@ impl<Req> Clone for ReverseProxy<Req> {
 impl<Req> ReverseProxy<Req> {
     /// Forward all HTTP requests to the given address.
     pub fn new<A: Into<SocketAddr>>(addr: A) -> Self {
-        let capacity = 4 * num_cpus::get_physical();
+        let capacity = num_cpus::get_physical();
         Self::with_capacity(addr, capacity)
     }
 
