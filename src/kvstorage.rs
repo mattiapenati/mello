@@ -182,6 +182,15 @@ impl<'a> WriteConn<'a> {
         get(&self.conn, &key.to_string())
     }
 
+    /// Check if the key exists.
+    #[inline(always)]
+    pub fn has<K>(&self, key: K) -> Result<bool>
+    where
+        K: Display,
+    {
+        has(&self.conn, &key.to_string())
+    }
+
     /// Set the value of key.
     pub fn set<K, V>(&self, key: K, value: &V) -> Result<()>
     where
@@ -232,6 +241,15 @@ impl<'a> WriteTx<'a> {
         V: DeserializeOwned,
     {
         get(&self.tx, &key.to_string())
+    }
+
+    /// Check if the key exists.
+    #[inline(always)]
+    pub fn has<K>(&self, key: K) -> Result<bool>
+    where
+        K: Display,
+    {
+        has(&self.tx, &key.to_string())
     }
 
     /// Set the value of key.
@@ -289,6 +307,15 @@ impl<'a> ReadConn<'a> {
     {
         get(self.conn, &key.to_string())
     }
+
+    /// Check if the key exists.
+    #[inline(always)]
+    pub fn has<K>(&self, key: K) -> Result<bool>
+    where
+        K: Display,
+    {
+        has(self.conn, &key.to_string())
+    }
 }
 
 /// Default flags for connection with write permission.
@@ -328,6 +355,16 @@ where
     .optional()?
     .map(|value| serde_json::from_str::<V>(&value))
     .transpose()
+    .map_err(Into::into)
+}
+
+/// Check if the key exists.
+fn has(conn: &rusqlite::Connection, key: &str) -> Result<bool> {
+    conn.query_row(
+        "SELECT EXISTS(SELECT value from kv WHERE KEY = ?1) AS has",
+        (key,),
+        |row| row.get::<_, bool>("has"),
+    )
     .map_err(Into::into)
 }
 
