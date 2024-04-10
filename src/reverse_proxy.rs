@@ -7,7 +7,7 @@
 use std::{
     convert::Infallible,
     error::Error as StdError,
-    future::{poll_fn, Future},
+    future::Future,
     net::SocketAddr,
     pin::Pin,
     sync::{Arc, Weak},
@@ -149,27 +149,6 @@ where
     }
 }
 
-impl<Req> hyper::service::Service<http::Request<Req>> for ReverseProxy<Req>
-where
-    Req: HttpBody + Send + 'static,
-    Req::Data: Send,
-    Req::Error: Into<Box<dyn StdError + Send + Sync>>,
-{
-    type Response = http::Response<Body>;
-    type Error = Infallible;
-    type Future = ReverseProxyResponseFuture;
-
-    fn call(&self, req: http::Request<Req>) -> Self::Future {
-        let mut this = self.clone();
-        Box::pin(async move {
-            poll_fn(|cx| tower_service::Service::poll_ready(&mut this, cx))
-                .await
-                .map(|_| tower_service::Service::call(&mut this, req))?
-                .await
-        })
-    }
-}
-
 /// Build the bad gateway response.
 fn build_bat_gateway_response() -> http::Response<Body> {
     let mut response = http::Response::new(Body::empty());
@@ -261,7 +240,7 @@ where
             _ => {
                 let stream = TcpStream::connect(self.addr).await?;
                 let io = TokioIo::new(stream);
-                let (send_request, conn) = http1::handshake(io).await.unwrap();
+                let (send_request, conn) = http1::handshake(io).await.map_err(PoolError::Hyper)?;
                 tokio::spawn(async move {
                     if let Err(err) = conn.with_upgrades().await {
                         tracing::error!("connection failed: {err}");
@@ -447,7 +426,12 @@ async fn pipe_upgraded_connections(
 
     let mut req_io = TokioIo::new(req_upgraded);
     let mut res_io = TokioIo::new(res_upgraded);
-    copy_bidirectional(&mut req_io, &mut res_io).await.unwrap();
+    copy_bidirectional(&mut req_io, &mut res_io)
+        .await
+        .map_err(|err| {
+            tracing::error!("failed to pipe upgraded connections: {err}");
+            PoolError::Io(err)
+        })?;
 
     Ok(())
 }
