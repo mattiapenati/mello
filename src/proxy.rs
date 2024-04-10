@@ -1,4 +1,4 @@
-//! Simple HTTP reverse proxy tower service.
+//! Simple HTTP reverse proxy implemented as tower service.
 //!
 //! The implementation is based on Go's [`httputil.ReverseProxy`].
 //!
