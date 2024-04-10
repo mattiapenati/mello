@@ -8,6 +8,7 @@ pub mod kvstorage;
 #[cfg_attr(docsrs, doc(cfg(feature = "trace")))]
 pub mod trace;
 
+pub mod otel;
 pub mod proxy;
 
 pub mod rand;
