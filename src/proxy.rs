@@ -345,11 +345,9 @@ fn trim_ascii_whitespace(value: &[u8]) -> &[u8] {
 
 /// Set the `X-Forwarded-*` headers.
 fn set_x_forwarded(headers: &mut http::HeaderMap, remote_addr: Option<RemoteAddr>) {
-    const X_FORWARDED_FOR: http::HeaderName = http::HeaderName::from_static("x-forwarded-for");
-    const X_FORWARDED_HOST: http::HeaderName = http::HeaderName::from_static("x-forwarded-host");
-    const X_FORWARDED_PROTO: http::HeaderName = http::HeaderName::from_static("x-forwarded-proto");
-
-    const HTTP: http::HeaderValue = http::HeaderValue::from_static("http");
+    const X_FORWARDED_FOR: &str = "x-forwarded-for";
+    const X_FORWARDED_HOST: &str = "x-forwarded-host";
+    const X_FORWARDED_PROTO: &str = "x-forwarded-proto";
 
     if let Some(remote_addr) = remote_addr {
         let ip = remote_addr.0.ip().to_string();
@@ -376,16 +374,14 @@ fn set_x_forwarded(headers: &mut http::HeaderMap, remote_addr: Option<RemoteAddr
                 entry.insert(value);
             }
         }
-    } else {
-        if let header::Entry::Occupied(entry) = headers.entry(X_FORWARDED_FOR) {
-            entry.remove_entry_mult();
-        }
+    } else if let header::Entry::Occupied(entry) = headers.entry(X_FORWARDED_FOR) {
+        entry.remove_entry_mult();
     }
 
     if let Some(host) = headers.get(header::HOST).cloned() {
         headers.insert(X_FORWARDED_HOST, host);
     }
-    headers.insert(X_FORWARDED_PROTO, HTTP);
+    headers.insert(X_FORWARDED_PROTO, http::HeaderValue::from_static("http"));
 }
 
 /// Remove hop-by-hop headers
@@ -400,20 +396,15 @@ fn remove_hop_by_hop_headers(headers: &mut http::HeaderMap) {
         headers.remove(header_name);
     }
 
-    const HOP_HEADERS: [http::HeaderName; 9] = [
-        header::CONNECTION,
-        http::HeaderName::from_static("proxy-connection"),
-        http::HeaderName::from_static("keep-alive"),
-        header::PROXY_AUTHENTICATE,
-        header::PROXY_AUTHORIZATION,
-        header::TE,
-        header::TRAILER,
-        header::TRANSFER_ENCODING,
-        header::UPGRADE,
-    ];
-    for header_name in HOP_HEADERS {
-        headers.remove(header_name);
-    }
+    headers.remove("proxy-connection");
+    headers.remove("keep-alive");
+    headers.remove(header::CONNECTION);
+    headers.remove(header::PROXY_AUTHENTICATE);
+    headers.remove(header::PROXY_AUTHORIZATION);
+    headers.remove(header::TE);
+    headers.remove(header::TRAILER);
+    headers.remove(header::TRANSFER_ENCODING);
+    headers.remove(header::UPGRADE);
 }
 
 /// Pipes upgraded connections
