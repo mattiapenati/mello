@@ -1,4 +1,8 @@
-//! An OpenTelemetry layer for HTTP services.
+//! An OpenTelemetry (span) layer for HTTP services.
+//!
+//! The implementation follows the [OpenTelemetry Semantic Conventions].
+//!
+//! [OpenTelemetry Semantic Conventions]: https://github.com/open-telemetry/semantic-conventions/blob/main/docs/http/http-spans.md
 
 use std::{
     fmt::Display,
@@ -13,6 +17,8 @@ use tower_layer::Layer;
 use tower_service::Service;
 use tracing::{field::DisplayValue, Level, Span};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
+
+use super::{http_method_label, http_version_label};
 
 // Opentelemetry semantic conventions
 const ERROR_MESSAGE: &str = "error.message";
@@ -167,10 +173,10 @@ fn make_request_span<Req>(level: Level, kind: SpanKind, req: &mut http::Request<
                 $level,
                 "HTTP",
                 { ERROR_MESSAGE } = Empty,
-                { HTTP_REQUEST_METHOD } = http_method(req.method()),
+                { HTTP_REQUEST_METHOD } = http_method_label(req.method()),
                 { HTTP_RESPONSE_STATUS_CODE } = Empty,
                 { NETWORK_PROTOCOL_NAME } = "http",
-                { NETWORK_PROTOCOL_VERSION } = http_version(req.version()),
+                { NETWORK_PROTOCOL_VERSION } = http_version_label(&req.version()),
                 { OTEL_KIND } = span_kind(kind),
                 { OTEL_STATUS_CODE } = Empty,
                 { URL_FULL } = request_full_url(kind, req.uri()),
@@ -227,11 +233,17 @@ fn record_response<Res>(span: &Span, kind: SpanKind, res: &http::Response<Res>) 
     }
 
     let status_code = match kind {
-        SpanKind::Client if res.status().is_client_error() => "ERROR",
-        _ if res.status().is_server_error() => "ERROR",
-        _ => "OK",
+        // For status codes in the 4xx range span status MUST be left unset in case of
+        // SpanKind.SERVER and MUST be set to ERROR in case of SpanKind.CLIENT.
+        SpanKind::Client if res.status().is_client_error() => Some("ERROR"),
+        // For status codes in the 5xx range span status MUST be set to ERROR.
+        _ if res.status().is_server_error() => Some("ERROR"),
+        // Span Status MUST be left unset if status code was in the 1xx, 2xx or 3xx ranges.
+        _ => None,
     };
-    span.record(OTEL_STATUS_CODE, status_code);
+    if let Some(status_code) = status_code {
+        span.record(OTEL_STATUS_CODE, status_code);
+    }
 }
 
 /// Records the error message.
@@ -246,34 +258,6 @@ fn request_full_url(kind: SpanKind, uri: &http::Uri) -> Option<DisplayValue<&htt
 
     match kind {
         SpanKind::Client => Some(display(uri)),
-        _ => None,
-    }
-}
-
-/// String representation of HTTP method
-fn http_method(method: &http::Method) -> Option<&'static str> {
-    match *method {
-        http::Method::GET => Some("GET"),
-        http::Method::POST => Some("POST"),
-        http::Method::PUT => Some("PUT"),
-        http::Method::DELETE => Some("DELETE"),
-        http::Method::HEAD => Some("HEAD"),
-        http::Method::OPTIONS => Some("OPTIONS"),
-        http::Method::CONNECT => Some("CONNECT"),
-        http::Method::PATCH => Some("PATCH"),
-        http::Method::TRACE => Some("TRACE"),
-        _ => None,
-    }
-}
-
-/// String representation of network protocol version
-fn http_version(version: http::Version) -> Option<&'static str> {
-    match version {
-        http::Version::HTTP_09 => Some("0.9"),
-        http::Version::HTTP_10 => Some("1.0"),
-        http::Version::HTTP_11 => Some("1.1"),
-        http::Version::HTTP_2 => Some("2"),
-        http::Version::HTTP_3 => Some("3"),
         _ => None,
     }
 }
