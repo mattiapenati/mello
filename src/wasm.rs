@@ -1,16 +1,20 @@
 use std::str::FromStr;
 
+use lol_alloc::{FreeListAllocator, LockedAllocator};
 use wasm_bindgen::prelude::*;
+
+#[global_allocator]
+static ALLOC: LockedAllocator<FreeListAllocator> = LockedAllocator::new(FreeListAllocator::new());
 
 /// Private key used to sign and verify tokens.
 #[wasm_bindgen]
-pub struct CsrfKey(super::CsrfKey);
+pub struct CsrfKey(crate::csrf::CsrfKey);
 
 #[wasm_bindgen]
 impl CsrfKey {
     /// Generate a new random key.
     pub fn generate() -> CsrfKey {
-        Self(super::CsrfKey::generate())
+        Self(crate::csrf::CsrfKey::generate())
     }
 
     /// Derive a new key, keys with the same tag are equals.
@@ -27,19 +31,21 @@ impl CsrfKey {
     /// Parses a string containing a CSRF key.
     #[wasm_bindgen(js_name = parseFromString)]
     pub fn parse_from_string(s: &str) -> Result<CsrfKey, JsError> {
-        super::CsrfKey::from_str(s).map(Self).map_err(JsError::from)
+        crate::csrf::CsrfKey::from_str(s)
+            .map(Self)
+            .map_err(JsError::from)
     }
 }
 
 /// CSRF signed token.
 #[wasm_bindgen]
-pub struct CsrfToken(super::CsrfToken);
+pub struct CsrfToken(crate::csrf::CsrfToken);
 
 #[wasm_bindgen]
 impl CsrfToken {
     /// Generate a new CSRF random token, signed with the given key.
     pub fn generate(key: &CsrfKey) -> CsrfToken {
-        Self(super::CsrfToken::generate(&key.0))
+        Self(crate::csrf::CsrfToken::generate(&key.0))
     }
 
     /// Verify the CSRF token with the given key.
@@ -56,7 +62,7 @@ impl CsrfToken {
     /// Parses a string containing a CSRF token.
     #[wasm_bindgen(js_name = parseFromString)]
     pub fn parse_from_string(s: &str) -> Result<CsrfToken, JsError> {
-        super::CsrfToken::from_str(s)
+        crate::csrf::CsrfToken::from_str(s)
             .map(Self)
             .map_err(JsError::from)
     }

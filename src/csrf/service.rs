@@ -478,7 +478,8 @@ mod tests {
 
     fn create_csrf_header(key: &CsrfKey) -> http::HeaderValue {
         let token = CsrfToken::generate(key);
-        assert_ok!(http::HeaderValue::from_str(&token.display().to_string()))
+        let token = token.display().to_string();
+        assert_ok!(http::HeaderValue::from_str(&token))
     }
 
     #[tokio::test]

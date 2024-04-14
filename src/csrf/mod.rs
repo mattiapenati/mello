@@ -54,9 +54,6 @@ pub use self::service::*;
 #[cfg(not(target_arch = "wasm32"))]
 mod service;
 
-#[cfg(target_arch = "wasm32")]
-mod wasm;
-
 /// A typedef of the signature algorithm.
 type Hmac = hmac::SimpleHmac<blake2::Blake2s256>;
 

@@ -1,6 +1,6 @@
 //! Random number generators
 
-use std::cell::UnsafeCell;
+use std::{cell::UnsafeCell, rc::Rc};
 
 use rand::{
     rngs::{adapter::ReseedingRng, OsRng},
@@ -14,13 +14,13 @@ pub struct CryptoRng {
 }
 
 thread_local! {
-    static RNG: UnsafeCell<CryptoRng> = UnsafeCell::new({
+    static RNG: Rc<UnsafeCell<CryptoRng>> = {
         let rng = ChaChaCore::from_rng(OsRng)
             .unwrap_or_else(|err| panic!("failed initialize random number generator: {err}"));
         let threshold: u64 = 32 * 1024; // 32kB
         let inner = ReseedingRng::new(rng, threshold, OsRng);
-        CryptoRng { inner }
-    });
+        Rc::new(UnsafeCell::new(CryptoRng { inner }))
+    };
 }
 
 /// Calls `f`, passing the random number generator to `f`.
