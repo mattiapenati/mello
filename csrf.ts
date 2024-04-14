@@ -1,5 +1,5 @@
-import { type Cookie, getCookies, setCookie } from "@std/http/cookie";
-import type { FreshContext, MiddlewareHandler } from "$fresh/server.ts";
+import { getCookies, setCookie } from "./deps.ts";
+import type { Cookie, FreshContext, MiddlewareHandler } from "./deps.ts";
 
 // @deno-types="./wasm/mello.d.ts"
 import { type CsrfKey, CsrfToken } from "./wasm/mello.js";
