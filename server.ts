@@ -1,5 +1,16 @@
-import { getCookies, setCookie } from "./deps.ts";
-import type { Cookie, FreshContext, MiddlewareHandler } from "./deps.ts";
+// @deno-types="./wasm/mello.d.ts"
+export { CsrfKey } from "./wasm/mello.js";
+
+import {
+  type Cookie,
+  getCookies,
+  getSetCookies,
+  setCookie,
+} from "jsr:@std/http@^0.222.1";
+import type {
+  FreshContext,
+  MiddlewareHandler,
+} from "https://deno.land/x/fresh@1.6.8/server.ts";
 
 // @deno-types="./wasm/mello.d.ts"
 import { type CsrfKey, CsrfToken } from "./wasm/mello.js";
@@ -10,12 +21,6 @@ const DEFAULT_CSRF_COOKIE_NAME = "csrftoken";
 const CSRF_COOKIE_NAME = Deno.env.get("CSRF_COOKIE_NAME") ??
   DEFAULT_CSRF_COOKIE_NAME;
 
-/** The default name of the header */
-const DEFAULT_CSRF_HEADER_NAME = "x-csrftoken";
-/** Header used to send the token to the server */
-export const CSRF_HEADER_NAME = Deno.env.get("CSRF_HEADER_NAME") ??
-  DEFAULT_CSRF_HEADER_NAME;
-
 /** Middleware that send the CSRF token as cookie
  *
  * @param key Secret key used to sign and verify tokens
@@ -23,6 +28,7 @@ export const CSRF_HEADER_NAME = Deno.env.get("CSRF_HEADER_NAME") ??
 export const SendCsrfMiddleware = <State>(
   key: CsrfKey,
 ): MiddlewareHandler<State> => {
+  // check if the request has a valid CSRF token
   const hasCsrfValidToken = (req: Request): boolean => {
     const cookies = getCookies(req.headers);
     const csrfCookie = cookies[CSRF_COOKIE_NAME];
@@ -35,6 +41,14 @@ export const SendCsrfMiddleware = <State>(
     }
   };
 
+  // Check if the header `Set-Cookie` for the CSRF token is missing.
+  // The header `Set-Cookie` can be set by a nested middleware, this check
+  // avoids the replacement by outer middleware.
+  const csrfSetCookieMissing = (res: Response): boolean => {
+    return getSetCookies(res.headers)
+      .find((cookie) => cookie.name === CSRF_COOKIE_NAME) === undefined;
+  };
+
   return async (
     req: Request,
     ctx: FreshContext<State>,
@@ -42,7 +56,8 @@ export const SendCsrfMiddleware = <State>(
     const res = await ctx.next();
 
     const shouldSetCookie = ctx.destination === "route" &&
-      req.method === "GET" && res.ok && !hasCsrfValidToken(req);
+      req.method === "GET" && res.ok && csrfSetCookieMissing(res) &&
+      !hasCsrfValidToken(req);
     if (shouldSetCookie) {
       const cookie: Cookie = {
         name: CSRF_COOKIE_NAME,
