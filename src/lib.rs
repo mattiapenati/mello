@@ -16,7 +16,5 @@ pub mod rng;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod trace;
 
-pub mod rand;
-
 #[cfg(target_arch = "wasm32")]
 mod wasm;

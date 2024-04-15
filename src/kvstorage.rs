@@ -389,11 +389,10 @@ fn del(conn: &rusqlite::Connection, key: &str) -> Result<()> {
 
 /// Generate a new random name for in-memory database.
 fn generate_random_name() -> String {
-    use crate::rand::random;
+    use crate::rng;
+    use rand::RngCore;
 
-    let a = random();
-    let b = random();
-
+    let (a, b) = rng::with_rng(|rng| (rng.next_u64(), rng.next_u64()));
     format!("{a:016x}-{b:016x}")
 }
 
