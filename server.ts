@@ -36,7 +36,8 @@ export const SendCsrfMiddleware = <State>(
       CsrfToken.parseFromString(csrfCookie).verify(key);
       return true;
     } catch (err) {
-      console.error(`Failed to parse CSRF token: ${err}`);
+      const path = new URL(req.url).pathname;
+      console.error(`[${path}] Failed to parse CSRF token: ${err}`);
       return false;
     }
   };
