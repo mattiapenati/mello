@@ -1,5 +1,5 @@
 // @deno-types="./wasm/mello.d.ts"
-export { CsrfKey } from "./wasm/mello.js";
+export { CsrfKey, MasterKey } from "./wasm/mello.js";
 
 import {
   type Cookie,

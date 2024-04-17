@@ -47,6 +47,13 @@ function takeObject(idx) {
     return ret;
 }
 
+function _assertClass(instance, klass) {
+    if (!(instance instanceof klass)) {
+        throw new Error(`expected instance of ${klass.name}`);
+    }
+    return instance.ptr;
+}
+
 let WASM_VECTOR_LEN = 0;
 
 const cachedTextEncoder = (typeof TextEncoder !== 'undefined' ? new TextEncoder('utf-8') : { encode: () => { throw Error('TextEncoder not available') } } );
@@ -103,18 +110,11 @@ function getInt32Memory0() {
     return cachedInt32Memory0;
 }
 
-function _assertClass(instance, klass) {
-    if (!(instance instanceof klass)) {
-        throw new Error(`expected instance of ${klass.name}`);
-    }
-    return instance.ptr;
-}
-
 function handleError(f, args) {
     try {
         return f.apply(this, args);
     } catch (e) {
-        wasm.__wbindgen_exn_store(addHeapObject(e));
+        wasm.__wbindgen_export_3(addHeapObject(e));
     }
 }
 
@@ -155,13 +155,15 @@ export class CsrfKey {
     }
     /**
     * Derive a new key, keys with the same tag are equals.
+    * @param {MasterKey} master
     * @param {string} tag
     * @returns {CsrfKey}
     */
-    derive(tag) {
-        const ptr0 = passStringToWasm0(tag, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    static derive(master, tag) {
+        _assertClass(master, MasterKey);
+        const ptr0 = passStringToWasm0(tag, wasm.__wbindgen_export_0, wasm.__wbindgen_export_1);
         const len0 = WASM_VECTOR_LEN;
-        const ret = wasm.csrfkey_derive(this.__wbg_ptr, ptr0, len0);
+        const ret = wasm.csrfkey_derive(master.__wbg_ptr, ptr0, len0);
         return CsrfKey.__wrap(ret);
     }
     /**
@@ -181,7 +183,7 @@ export class CsrfKey {
             return getStringFromWasm0(r0, r1);
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+            wasm.__wbindgen_export_2(deferred1_0, deferred1_1, 1);
         }
     }
     /**
@@ -192,7 +194,7 @@ export class CsrfKey {
     static parseFromString(s) {
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            const ptr0 = passStringToWasm0(s, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+            const ptr0 = passStringToWasm0(s, wasm.__wbindgen_export_0, wasm.__wbindgen_export_1);
             const len0 = WASM_VECTOR_LEN;
             wasm.csrfkey_parseFromString(retptr, ptr0, len0);
             var r0 = getInt32Memory0()[retptr / 4 + 0];
@@ -280,7 +282,7 @@ export class CsrfToken {
             return getStringFromWasm0(r0, r1);
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+            wasm.__wbindgen_export_2(deferred1_0, deferred1_1, 1);
         }
     }
     /**
@@ -291,7 +293,7 @@ export class CsrfToken {
     static parseFromString(s) {
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            const ptr0 = passStringToWasm0(s, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+            const ptr0 = passStringToWasm0(s, wasm.__wbindgen_export_0, wasm.__wbindgen_export_1);
             const len0 = WASM_VECTOR_LEN;
             wasm.csrftoken_parseFromString(retptr, ptr0, len0);
             var r0 = getInt32Memory0()[retptr / 4 + 0];
@@ -307,14 +309,90 @@ export class CsrfToken {
     }
 }
 
+const MasterKeyFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_masterkey_free(ptr >>> 0));
+/**
+* A cryptographically secure random key, it can be used to derive other keys.
+*/
+export class MasterKey {
+
+    static __wrap(ptr) {
+        ptr = ptr >>> 0;
+        const obj = Object.create(MasterKey.prototype);
+        obj.__wbg_ptr = ptr;
+        MasterKeyFinalization.register(obj, obj.__wbg_ptr, obj);
+        return obj;
+    }
+
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        MasterKeyFinalization.unregister(this);
+        return ptr;
+    }
+
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_masterkey_free(ptr);
+    }
+    /**
+    * Generate a new random master key using the ChaCha random number generator.
+    * @returns {MasterKey}
+    */
+    static generate() {
+        const ret = wasm.csrfkey_generate();
+        return MasterKey.__wrap(ret);
+    }
+    /**
+    * Returns a string representing this object.
+    * @returns {string}
+    */
+    toString() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.masterkey_toString(retptr, this.__wbg_ptr);
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export_2(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+    * Parses a string containing a master key.
+    * @param {string} s
+    * @returns {MasterKey}
+    */
+    static parseFromString(s) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            const ptr0 = passStringToWasm0(s, wasm.__wbindgen_export_0, wasm.__wbindgen_export_1);
+            const len0 = WASM_VECTOR_LEN;
+            wasm.masterkey_parseFromString(retptr, ptr0, len0);
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            var r2 = getInt32Memory0()[retptr / 4 + 2];
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return MasterKey.__wrap(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+}
+
 const imports = {
     __wbindgen_placeholder__: {
         __wbindgen_error_new: function(arg0, arg1) {
             const ret = new Error(getStringFromWasm0(arg0, arg1));
             return addHeapObject(ret);
-        },
-        __wbindgen_object_drop_ref: function(arg0) {
-            takeObject(arg0);
         },
         __wbg_crypto_566d7465cdbb6b7a: function(arg0) {
             const ret = getObject(arg0).crypto;
@@ -333,6 +411,9 @@ const imports = {
             const ret = getObject(arg0).versions;
             return addHeapObject(ret);
         },
+        __wbindgen_object_drop_ref: function(arg0) {
+            takeObject(arg0);
+        },
         __wbg_node_caaf83d002149bd5: function(arg0) {
             const ret = getObject(arg0).node;
             return addHeapObject(ret);
@@ -341,20 +422,16 @@ const imports = {
             const ret = typeof(getObject(arg0)) === 'string';
             return ret;
         },
-        __wbg_msCrypto_0b84745e9245cdf6: function(arg0) {
-            const ret = getObject(arg0).msCrypto;
-            return addHeapObject(ret);
-        },
         __wbg_require_94a9da52636aacbf: function() { return handleError(function () {
             const ret = module.require;
             return addHeapObject(ret);
         }, arguments) },
-        __wbindgen_is_function: function(arg0) {
-            const ret = typeof(getObject(arg0)) === 'function';
-            return ret;
-        },
         __wbindgen_string_new: function(arg0, arg1) {
             const ret = getStringFromWasm0(arg0, arg1);
+            return addHeapObject(ret);
+        },
+        __wbg_msCrypto_0b84745e9245cdf6: function(arg0) {
+            const ret = getObject(arg0).msCrypto;
             return addHeapObject(ret);
         },
         __wbg_randomFillSync_290977693942bf03: function() { return handleError(function (arg0, arg1) {
@@ -363,17 +440,9 @@ const imports = {
         __wbg_getRandomValues_260cc23a41afad9a: function() { return handleError(function (arg0, arg1) {
             getObject(arg0).getRandomValues(getObject(arg1));
         }, arguments) },
-        __wbg_newnoargs_e258087cd0daa0ea: function(arg0, arg1) {
-            const ret = new Function(getStringFromWasm0(arg0, arg1));
-            return addHeapObject(ret);
-        },
-        __wbg_call_27c0f87801dedf93: function() { return handleError(function (arg0, arg1) {
-            const ret = getObject(arg0).call(getObject(arg1));
-            return addHeapObject(ret);
-        }, arguments) },
-        __wbindgen_object_clone_ref: function(arg0) {
-            const ret = getObject(arg0);
-            return addHeapObject(ret);
+        __wbindgen_is_function: function(arg0) {
+            const ret = typeof(getObject(arg0)) === 'function';
+            return ret;
         },
         __wbg_self_ce0dbfc45cf2f5be: function() { return handleError(function () {
             const ret = self.self;
@@ -394,6 +463,18 @@ const imports = {
         __wbindgen_is_undefined: function(arg0) {
             const ret = getObject(arg0) === undefined;
             return ret;
+        },
+        __wbg_newnoargs_e258087cd0daa0ea: function(arg0, arg1) {
+            const ret = new Function(getStringFromWasm0(arg0, arg1));
+            return addHeapObject(ret);
+        },
+        __wbg_call_27c0f87801dedf93: function() { return handleError(function (arg0, arg1) {
+            const ret = getObject(arg0).call(getObject(arg1));
+            return addHeapObject(ret);
+        }, arguments) },
+        __wbindgen_object_clone_ref: function(arg0) {
+            const ret = getObject(arg0);
+            return addHeapObject(ret);
         },
         __wbg_call_b3ca7c6051f9bec1: function() { return handleError(function (arg0, arg1, arg2) {
             const ret = getObject(arg0).call(getObject(arg1), getObject(arg2));

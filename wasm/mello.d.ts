@@ -12,10 +12,11 @@ export class CsrfKey {
   static generate(): CsrfKey;
 /**
 * Derive a new key, keys with the same tag are equals.
+* @param {MasterKey} master
 * @param {string} tag
 * @returns {CsrfKey}
 */
-  derive(tag: string): CsrfKey;
+  static derive(master: MasterKey, tag: string): CsrfKey;
 /**
 * Returns a string representing this object.
 * @returns {string}
@@ -55,4 +56,26 @@ export class CsrfToken {
 * @returns {CsrfToken}
 */
   static parseFromString(s: string): CsrfToken;
+}
+/**
+* A cryptographically secure random key, it can be used to derive other keys.
+*/
+export class MasterKey {
+  free(): void;
+/**
+* Generate a new random master key using the ChaCha random number generator.
+* @returns {MasterKey}
+*/
+  static generate(): MasterKey;
+/**
+* Returns a string representing this object.
+* @returns {string}
+*/
+  toString(): string;
+/**
+* Parses a string containing a master key.
+* @param {string} s
+* @returns {MasterKey}
+*/
+  static parseFromString(s: string): MasterKey;
 }

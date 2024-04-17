@@ -7,17 +7,14 @@
 //! # Key generation
 //!
 //! Each CSRF token is signed using the HMAC-BLAKE2 authentication algorithm
-//! to guarantee its authenticity. The key used to sign and verify the token
-//! is a sequence of 64 bytes randomly generated using the ChaCha algorithm.
-//!
-//! From an existing key you can derive other keys using the method `derive`,
+//! to guarantee its authenticity. Keys can be derived from a [`MasterKey`],
 //! Argon2 algorithm is used to create the derived key. Each derived key is
 //! identified by a tag (a string) and keys generated with the same tag are
 //! equal.
 //!
 //! ```
-//! let key = CsrfKey::generate();
-//! let derived_key = key.derive("tag");
+//! let master = MasterKey::generate();
+//! let key = CsrfKey::derive(&master, "tag");
 //! ```
 //!
 //! # Send CSRF token to client
@@ -45,7 +42,10 @@ use hmac::Mac;
 use rand::RngCore;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
-use crate::rng;
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
+
+use crate::{debug::DebugSha256, rng, MasterKey};
 
 #[cfg(not(target_arch = "wasm32"))]
 #[doc(inline)]
@@ -57,25 +57,19 @@ mod service;
 /// A typedef of the signature algorithm.
 type Hmac = hmac::SimpleHmac<blake2::Blake2s256>;
 
-struct DebugSha256<'a>(&'a [u8]);
-impl<'a> std::fmt::Debug for DebugSha256<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use sha2::Digest;
-
-        let Self(bytes) = self;
-
-        let mut hasher = sha2::Sha256::new();
-        hasher.update(bytes);
-        let hash = hasher.finalize();
-
-        f.write_fmt(format_args!("sha256:{:064x?}", hash))
-    }
-}
-
 /// Private key used to sign and verify tokens.
 #[derive(Clone, Zeroize, ZeroizeOnDrop)]
 #[repr(transparent)]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 pub struct CsrfKey([u8; Self::BYTES]);
+
+impl std::fmt::Debug for CsrfKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("CsrfKey")
+            .field(&DebugSha256(&self.0))
+            .finish()
+    }
+}
 
 impl CsrfKey {
     /// The size of the key in bytes.
@@ -89,11 +83,9 @@ impl CsrfKey {
     }
 
     /// Derive a new key, keys with the same tag are equals.
-    pub fn derive(&self, tag: &str) -> Self {
+    pub fn derive(master: &MasterKey, tag: &str) -> Self {
         let mut bytes = [0u8; Self::BYTES];
-        argon2::Argon2::default()
-            .hash_password_into(tag.as_bytes(), &self.0, &mut bytes)
-            .expect("failed to generate derived CSRF key");
+        master.fill_bytes(tag, &mut bytes);
         Self(bytes)
     }
 
@@ -105,11 +97,30 @@ impl CsrfKey {
     }
 }
 
-impl std::fmt::Debug for CsrfKey {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("CsrfKey")
-            .field(&DebugSha256(&self.0))
-            .finish()
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+impl CsrfKey {
+    /// Generate a new random key.
+    #[wasm_bindgen(js_name = generate)]
+    pub fn generate_js() -> CsrfKey {
+        Self::generate()
+    }
+
+    /// Derive a new key, keys with the same tag are equals.
+    #[wasm_bindgen(js_name = derive)]
+    pub fn derive_js(master: &MasterKey, tag: &str) -> CsrfKey {
+        Self::derive(master, tag)
+    }
+    /// Returns a string representing this object.
+    #[wasm_bindgen(js_name = toString)]
+    pub fn to_string(&self) -> String {
+        self.display().to_string()
+    }
+
+    /// Parses a string containing a CSRF key.
+    #[wasm_bindgen(js_name = parseFromString)]
+    pub fn parse_from_string(s: &str) -> Result<CsrfKey, JsError> {
+        s.parse().map_err(JsError::from)
     }
 }
 
@@ -164,7 +175,16 @@ impl std::fmt::Display for InvalidCsrfKey {
 impl std::error::Error for InvalidCsrfKey {}
 
 /// CSRF signed token.
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 pub struct CsrfToken([u8; Self::BYTES]);
+
+impl std::fmt::Debug for CsrfToken {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("CsrfToken")
+            .field(&DebugSha256(&self.0))
+            .finish()
+    }
+}
 
 impl CsrfToken {
     /// The number of random bytes.
@@ -205,11 +225,31 @@ impl CsrfToken {
     }
 }
 
-impl std::fmt::Debug for CsrfToken {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("CsrfToken")
-            .field(&DebugSha256(&self.0))
-            .finish()
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+impl CsrfToken {
+    /// Generate a new CSRF random token, signed with the given key.
+    #[wasm_bindgen(js_name = generate)]
+    pub fn generate_js(key: &CsrfKey) -> CsrfToken {
+        Self::generate(key)
+    }
+
+    /// Verify the CSRF token with the given key.
+    #[wasm_bindgen(js_name = verify)]
+    pub fn verify_js(&self, key: &CsrfKey) -> Result<(), JsError> {
+        self.verify(key).map_err(JsError::from)
+    }
+
+    /// Returns a string representing this object.
+    #[wasm_bindgen(js_name = toString)]
+    pub fn to_string(&self) -> String {
+        self.display().to_string()
+    }
+
+    /// Parses a string containing a CSRF token.
+    #[wasm_bindgen(js_name = parseFromString)]
+    pub fn parse_from_string(s: &str) -> Result<CsrfToken, JsError> {
+        s.parse().map_err(JsError::from)
     }
 }
 
@@ -282,14 +322,14 @@ mod tests {
 
     #[test]
     fn csrf_derived_keys_as_distinct() {
-        let key = CsrfKey::generate();
-        let signup_key = key.derive("signup");
+        let master = MasterKey::generate();
+        let signup_key = CsrfKey::derive(&master, "signup");
         let token = CsrfToken::generate(&signup_key);
 
-        let new_signup_key = key.derive("signup");
+        let new_signup_key = CsrfKey::derive(&master, "signup");
         assert_ok!(token.verify(&new_signup_key));
 
-        let signin_key = key.derive("signin");
+        let signin_key = CsrfKey::derive(&master, "signin");
         assert_err!(token.verify(&signin_key));
     }
 }

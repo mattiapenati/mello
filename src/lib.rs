@@ -1,6 +1,10 @@
-#![cfg_attr(docsrs, feature(doc_cfg))]
+#[doc(inline)]
+pub use self::master_key::{InvalidMasterKey, MasterKey};
 
 pub mod csrf;
+mod debug;
+mod master_key;
+pub mod rng;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod kvstorage;
@@ -11,7 +15,11 @@ pub mod otel;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod proxy;
 
-pub mod rng;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod ticket;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod time;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod trace;
