@@ -1,5 +1,11 @@
 [workspace]
-members = [".", "mello-core"]
+resolver = "2"
+members = [".", "mello-core", "mello-kv"]
+
+[workspace.package]
+authors = ["Mattia Penati <mattia.penati@protonmail.com>"]
+edition = "2021"
+license = "Apache-2.0 OR MIT"
 
 [package]
 name = "mello"

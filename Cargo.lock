@@ -780,6 +780,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "mello-kv"
+version = "0.1.0"
+dependencies = [
+ "claym",
+ "parking_lot",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "thread_local",
+]
+
+[[package]]
 name = "memchr"
 version = "2.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"

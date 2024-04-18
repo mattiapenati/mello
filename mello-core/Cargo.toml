@@ -2,8 +2,9 @@
 name = "mello-core"
 description = "Mello's core package"
 version = "0.1.0"
-edition = "2021"
-license = "Apache-2.0 OR MIT"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
 
 [lib]
 crate-type = ["cdylib", "lib"]
