@@ -42,7 +42,7 @@ impl DateTime {
         let rounded_nanos = if 2 * offset_nanos < duration_nanos.abs() {
             time_nanos - offset_nanos
         } else {
-            time_nanos + offset_nanos
+            time_nanos + duration_nanos - offset_nanos
         };
         let rounded = time::OffsetDateTime::from_unix_timestamp_nanos(rounded_nanos).unwrap();
         Self(rounded)

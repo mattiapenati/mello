@@ -5,6 +5,7 @@ pub mod csrf;
 mod debug;
 mod master;
 pub mod rng;
+pub mod ticket;
 pub mod time;
 
 #[cfg(target_arch = "wasm32")]

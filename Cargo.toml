@@ -19,6 +19,7 @@ blake2 = "0.10.6"
 bytes = "1.6.0"
 claym = "0.5.1"
 cookie = "0.18.1"
+ed25519-dalek = "2.1.1"
 getrandom = "0.2.14"
 heapless = "0.8.0"
 hmac = "0.12.1"
@@ -67,25 +68,12 @@ license = "Apache-2.0 OR MIT"
 [dependencies]
 mello-core.workspace = true
 
-base64ct = "1.6.0"
-ed25519-dalek = "2.1.1"
 num_cpus = "1.16.0"
 parking_lot = "0.12.1"
-rand = "0.8.5"
-serde = { version = "1.0.198", features = ["derive"] }
-serde_json = "1.0.116"
-sha2 = "0.10.8"
 slab = "0.4.9"
-tokio = { version = "1.37.0", features = ["io-util", "net", "sync", "rt"] }
+tokio = { version = "1.37.0", features = ["sync", "rt"] }
 tokio-postgres = "0.7.10"
 tokio-postgres-rustls = "0.12.0"
-zeroize = { version = "1.7.0", features = ["derive"] }
-
-[dev-dependencies]
-claym = "0.5.1"
-mello-core = { workspace = true, features = ["mock-time"] }
-tokio = { version = "1.37.0", features = ["macros"] }
-tower = { version = "0.4.13", features = ["util"] }
 
 [profile.release]
 codegen-units = 1

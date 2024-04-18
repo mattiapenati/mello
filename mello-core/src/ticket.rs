@@ -13,13 +13,15 @@
 
 use base64ct::{Base64Url, Encoding};
 use ed25519_dalek::{ed25519::signature::Signer, Signature, SigningKey};
-use mello_core::{
+use rand::RngCore;
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
+
+use crate::{
+    debug::DebugSha256,
     rng,
     time::{DateTime, Duration},
     MasterKey,
 };
-use rand::RngCore;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 /// Ticket with user defined data and expiration.
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
@@ -72,7 +74,18 @@ impl<T> Ticket<T> {
 }
 
 /// The private key used to sign and verify tickets.
+#[derive(Clone)]
+#[repr(transparent)]
 pub struct TicketKey(SigningKey);
+
+impl std::fmt::Debug for TicketKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let private_key = self.0.to_bytes();
+        f.debug_tuple("TicketKey")
+            .field(&DebugSha256(private_key.as_slice()))
+            .finish()
+    }
+}
 
 impl TicketKey {
     /// The length of the secret key in bytes.
@@ -131,7 +144,7 @@ pub struct InvalidTicket;
 mod test {
     use claym::*;
 
-    use mello_core::time::MockDateTime;
+    use crate::time::MockDateTime;
 
     use super::*;
 

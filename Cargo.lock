@@ -789,22 +789,13 @@ dependencies = [
 name = "mello"
 version = "0.1.0"
 dependencies = [
- "base64ct",
- "claym",
- "ed25519-dalek",
  "mello-core",
  "num_cpus",
  "parking_lot",
- "rand",
- "serde",
- "serde_json",
- "sha2",
  "slab",
  "tokio",
  "tokio-postgres",
  "tokio-postgres-rustls",
- "tower",
- "zeroize",
 ]
 
 [[package]]
@@ -815,6 +806,7 @@ dependencies = [
  "base64ct",
  "blake2",
  "claym",
+ "ed25519-dalek",
  "getrandom",
  "hmac",
  "lol_alloc",
@@ -822,6 +814,7 @@ dependencies = [
  "rand_chacha",
  "rand_pcg",
  "serde",
+ "serde_json",
  "sha2",
  "time",
  "wasm-bindgen",
