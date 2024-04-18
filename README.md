@@ -6,7 +6,7 @@
 deveolpment of my code. It contains solutions for a broad class of problems of
 backend development:
 
-- cryptographic key derivation solution that use
+- cryptographic key derivation solution that uses
   [argon2](https://crates.io/crates/argon2);
 - signed ticket to manage user invitation or password change based on Ed22519 (a
   thin wrapper of [ed25519_dalek](https://crates.io/crates/ed25519-dalek));

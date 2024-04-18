@@ -9,10 +9,7 @@ license.workspace = true
 [dependencies]
 num_cpus.workspace = true
 parking_lot.workspace = true
-rustls = { workspace = true, default-features = false, features = [
-    "std",
-    "tls12",
-] }
+rustls.workspace = true
 rustls-native-certs.workspace = true
 slab.workspace = true
 tokio.workspace = true
