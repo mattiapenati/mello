@@ -1,5 +1,5 @@
-// @deno-types="./wasm/mello.d.ts"
-export { CsrfKey, MasterKey } from "./wasm/mello.js";
+// @deno-types="./wasm/mello_core.d.ts"
+export { CsrfKey, MasterKey } from "./wasm/mello_core.js";
 
 import {
   type Cookie,
@@ -12,8 +12,8 @@ import type {
   MiddlewareHandler,
 } from "https://deno.land/x/fresh@1.6.8/server.ts";
 
-// @deno-types="./wasm/mello.d.ts"
-import { type CsrfKey, CsrfToken } from "./wasm/mello.js";
+// @deno-types="./wasm/mello_core.d.ts"
+import { type CsrfKey, CsrfToken } from "./wasm/mello_core.js";
 
 /** The default name of the cookie */
 const DEFAULT_CSRF_COOKIE_NAME = "csrftoken";

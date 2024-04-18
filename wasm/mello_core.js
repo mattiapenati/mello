@@ -514,7 +514,7 @@ const imports = {
 
 };
 
-const wasm_url = new URL('mello_bg.wasm', import.meta.url);
+const wasm_url = new URL('mello_core_bg.wasm', import.meta.url);
 let wasmCode = '';
 switch (wasm_url.protocol) {
     case 'file:':

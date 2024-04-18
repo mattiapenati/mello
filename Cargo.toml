@@ -7,6 +7,30 @@ authors = ["Mattia Penati <mattia.penati@protonmail.com>"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
 
+[workspace.dependencies]
+mello-core = { path = "./mello-core" }
+mello-kv = { path = "./mello-kv" }
+
+argon2 = "0.5.3"
+base64ct = "1.6.0"
+blake2 = "0.10.6"
+claym = "0.5.1"
+getrandom = "0.2.14"
+hmac = "0.12.1"
+lol_alloc = "0.4.1"
+parking_lot = "0.12.1"
+rand = "0.8.5"
+rand_chacha = "0.3.1"
+rand_pcg = "0.3.1"
+rusqlite = "0.31.0"
+serde = "1.0.198"
+serde_json = "1.0.116"
+sha2 = "0.10.8"
+thread_local = "1.1.8"
+time = "0.3.36"
+wasm-bindgen = "0.2.92"
+zeroize = "1.7.0"
+
 [package]
 name = "mello"
 description = "A small toolbox for fast web api prototyping"
@@ -15,26 +39,16 @@ version = "0.1.0"
 edition = "2021"
 license = "Apache-2.0 OR MIT"
 
-[lib]
-crate-type = ["cdylib", "lib"]
-
 [dependencies]
-argon2 = "0.5.3"
+mello-core.workspace = true
+
 base64ct = "1.6.0"
-blake2 = "0.10.6"
-hmac = "0.12.1"
 rand = "0.8.5"
-rand_chacha = "0.3.1"
-rand_core = "0.6.4"
-rand_pcg = "0.3.1"
 serde = { version = "1.0.198", features = ["derive"] }
 sha2 = "0.10.8"
-time = "0.3.36"
 tokio-postgres-rustls = "0.12.0"
 tracing = "0.1.40"
 zeroize = { version = "1.7.0", features = ["derive"] }
-
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 bytes = "1.6.0"
 cookie = "0.18.1"
 ed25519-dalek = "2.1.1"
@@ -54,10 +68,8 @@ opentelemetry_sdk = { version = "0.22.1", default-features = false, features = [
 parking_lot = "0.12.1"
 pin-project-lite = "0.2.14"
 prometheus = { version = "0.13.3", default-features = false }
-rusqlite = "0.31.0"
 serde_json = "1.0.116"
 slab = "0.4.9"
-thread_local = "1.1.8"
 tokio = { version = "1.37.0", features = ["io-util", "net", "sync", "rt"] }
 tokio-postgres = "0.7.10"
 tower-layer = "0.3.2"
@@ -73,18 +85,11 @@ tracing-subscriber = { version = "0.3.18", default-features = false, features = 
     "tracing-log",
 ] }
 
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-getrandom = { version = "0.2.14", features = ["js"] }
-lol_alloc = "0.4.1"
-wasm-bindgen = "0.2.92"
-
 [dev-dependencies]
 claym = "0.5.1"
-tower = { version = "0.4.13", features = ["util"] }
+mello-core = { workspace = true, features = ["mock-time"] }
 tokio = { version = "1.37.0", features = ["macros"] }
-
-[features]
-mock-time = []
+tower = { version = "0.4.13", features = ["util"] }
 
 [profile.release]
 codegen-units = 1

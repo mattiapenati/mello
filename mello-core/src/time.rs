@@ -47,6 +47,28 @@ impl DateTime {
         let rounded = time::OffsetDateTime::from_unix_timestamp_nanos(rounded_nanos).unwrap();
         Self(rounded)
     }
+
+    /// Serialize the value using the unix timestamp in milliseconds (JS compatibility).
+    pub fn serialize_with_unix_timestamp<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let unix_timestamp_millis = self.0.unix_timestamp_nanos() / 1_000_000;
+        serializer.serialize_i64(unix_timestamp_millis as i64)
+    }
+
+    /// Deserialize the value using the unix timestamp in milliseconds (JS compatibility).
+    pub fn deserialize_with_unix_timestamp<'de, D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde::Deserialize;
+
+        let unix_timestamp_millis = i128::deserialize(deserializer)? * 1_000_000;
+        time::OffsetDateTime::from_unix_timestamp_nanos(unix_timestamp_millis)
+            .map(Self)
+            .map_err(serde::de::Error::custom)
+    }
 }
 
 /// A span of time.
@@ -57,6 +79,26 @@ pub struct Duration(time::Duration);
 impl std::fmt::Debug for Duration {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         std::fmt::Debug::fmt(&self.0, f)
+    }
+}
+
+impl Duration {
+    /// A [`Duration`] equivalend to 1 millisecond.
+    pub const MILLISECOND: Self = Self::milliseconds(1);
+
+    /// A new [`Duration`] with the given number of hours.
+    pub const fn hours(hours: i64) -> Self {
+        Self(time::Duration::hours(hours))
+    }
+
+    /// A new [`Duration`] with the given number of minutes.
+    pub const fn minutes(minutes: i64) -> Self {
+        Self(time::Duration::minutes(minutes))
+    }
+
+    /// A new [`Duration`] with the given number of milliseconds.
+    pub const fn milliseconds(milliseconds: i64) -> Self {
+        Self(time::Duration::milliseconds(milliseconds))
     }
 }
 

@@ -41,7 +41,7 @@ impl MasterKey {
 
     /// Fill the array with random bytes, the generated sequence depends only on
     /// the [`MasterKey`] and the tag.
-    pub(crate) fn fill_bytes<T: AsRef<[u8]>>(&self, tag: T, bytes: &mut [u8]) {
+    pub fn fill_bytes<T: AsRef<[u8]>>(&self, tag: T, bytes: &mut [u8]) {
         argon2::Argon2::default()
             .hash_password_into(tag.as_ref(), &self.0, bytes)
             .expect("failed to generate derived CSRF key");

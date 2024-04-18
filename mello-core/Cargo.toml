@@ -10,24 +10,25 @@ license.workspace = true
 crate-type = ["cdylib", "lib"]
 
 [dependencies]
-argon2 = "0.5.3"
-base64ct = "1.6.0"
-blake2 = "0.10.6"
-hmac = "0.12.1"
-rand = "0.8.5"
-rand_chacha = "0.3.1"
-rand_pcg = "0.3.1"
-sha2 = "0.10.8"
-time = "0.3.36"
-zeroize = { version = "1.7.0", features = ["derive"] }
+argon2.workspace = true
+base64ct.workspace = true
+blake2.workspace = true
+hmac.workspace = true
+rand.workspace = true
+rand_chacha.workspace = true
+rand_pcg.workspace = true
+serde.workspace = true
+sha2.workspace = true
+time.workspace = true
+zeroize = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]
-claym = "0.5.1"
+claym.workspace = true
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-getrandom = { version = "0.2.14", features = ["js"] }
-lol_alloc = "0.4.1"
-wasm-bindgen = "0.2.92"
+getrandom = { workspace = true, features = ["js"] }
+lol_alloc.workspace = true
+wasm-bindgen.workspace = true
 
 [features]
 mock-time = []

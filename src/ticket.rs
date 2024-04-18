@@ -13,14 +13,13 @@
 
 use base64ct::{Base64Url, Encoding};
 use ed25519_dalek::{ed25519::signature::Signer, Signature, SigningKey};
-use rand::RngCore;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
-
-use crate::{
+use mello_core::{
     rng,
     time::{DateTime, Duration},
     MasterKey,
 };
+use rand::RngCore;
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 /// Ticket with user defined data and expiration.
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
@@ -132,7 +131,7 @@ pub struct InvalidTicket;
 mod test {
     use claym::*;
 
-    use crate::time::{Duration, MockDateTime};
+    use mello_core::time::MockDateTime;
 
     use super::*;
 

@@ -1,3 +1,23 @@
+//! Cross Site Request Forgery protection.
+//!
+//! # Send CSRF token to client
+//!
+//! CSRF token is send as a cookie to the client using the middleware
+//! [`SendCsrf`]. The token is send only if the server received a GET request
+//! without a valid CSRF token and if the response is a success.
+//!
+//! The default name of the cookie is `csrftoken` and it can be customized
+//! using the enviroment variable `CSRF_COOKIE_NAME`.
+//!
+//! # Verify CSRF token on server
+//!
+//! The CSRF token should be send to the server using a custom header, the
+//! middleware [`VerifyCsrf`] can be used to check the presence and verify the
+//! signature of the sent token.
+//!
+//! The default name of the header is `x-csrftoken` and it can be customized
+//! using the environment variable `CSRF_HEADER_NAME`.
+
 use std::{
     future::Future,
     pin::Pin,
@@ -7,56 +27,53 @@ use std::{
 };
 
 use http::header;
+use mello_core::csrf::{CsrfKey, CsrfToken};
 use pin_project_lite::pin_project;
 use tower_layer::Layer;
 use tower_service::Service;
 
-use super::{CsrfKey, CsrfToken};
+/// Create a new `Set-Cookie` header to send the token to the client.
+fn create_set_cookie_header(token: CsrfToken, cookie_name: &str) -> http::HeaderValue {
+    let cookie_value = token.display().to_string();
+    let set_cookie = cookie::Cookie::build((cookie_name, cookie_value))
+        .same_site(cookie::SameSite::Strict)
+        .secure(true)
+        .http_only(false)
+        .path("/")
+        .build()
+        .to_string();
 
-impl CsrfToken {
-    /// Create a new `Set-Cookie` header to send the token to the client.
-    fn create_set_cookie_header(&self, cookie_name: &str) -> http::HeaderValue {
-        let cookie_value = self.display().to_string();
-        let set_cookie = cookie::Cookie::build((cookie_name, cookie_value))
-            .same_site(cookie::SameSite::Strict)
-            .secure(true)
-            .http_only(false)
-            .path("/")
-            .build()
-            .to_string();
+    http::HeaderValue::from_str(&set_cookie).expect("failed to create `Set-Cookie` header")
+}
 
-        http::HeaderValue::from_str(&set_cookie).expect("failed to create `Set-Cookie` header")
-    }
+/// Extract the token from the request's cookies.
+fn extract_from_cookies(headers: &http::HeaderMap, cookie_name: &str) -> Option<CsrfToken> {
+    let cookie = headers
+        .get_all(header::COOKIE)
+        .iter()
+        .filter_map(|header| header.to_str().ok())
+        .flat_map(|header| header.split(';'))
+        .filter_map(|cookie| {
+            cookie::Cookie::parse(cookie)
+                .ok()
+                .filter(|cookie| cookie.name() == cookie_name)
+        })
+        .next()?;
 
-    /// Extract the token from the request's cookies.
-    fn extract_from_cookies(headers: &http::HeaderMap, cookie_name: &str) -> Option<Self> {
-        let cookie = headers
-            .get_all(header::COOKIE)
-            .iter()
-            .filter_map(|header| header.to_str().ok())
-            .flat_map(|header| header.split(';'))
-            .filter_map(|cookie| {
-                cookie::Cookie::parse(cookie)
-                    .ok()
-                    .filter(|cookie| cookie.name() == cookie_name)
-            })
-            .next()?;
+    cookie.value().parse().ok()
+}
 
-        cookie.value().parse().ok()
-    }
-
-    /// Extract the token from the request's headers.
-    fn extract_from_headers(
-        headers: &http::HeaderMap,
-        header_name: &http::HeaderName,
-    ) -> Option<Self> {
-        headers
-            .get_all(header_name)
-            .iter()
-            .filter_map(|header| header.to_str().ok())
-            .filter_map(|header| Self::from_str(header).ok())
-            .next()
-    }
+/// Extract the token from the request's headers.
+fn extract_from_headers(
+    headers: &http::HeaderMap,
+    header_name: &http::HeaderName,
+) -> Option<CsrfToken> {
+    headers
+        .get_all(header_name)
+        .iter()
+        .filter_map(|header| header.to_str().ok())
+        .filter_map(|header| CsrfToken::from_str(header).ok())
+        .next()
 }
 
 /// Configuration of [`SendCsrf`] middleware.
@@ -147,11 +164,11 @@ where
 
     fn call(&mut self, req: http::Request<Req>) -> Self::Future {
         let SendCsrfConfig { cookie_name, key } = self.config.as_ref();
-        let token = CsrfToken::extract_from_cookies(req.headers(), cookie_name);
+        let token = extract_from_cookies(req.headers(), cookie_name);
         let should_set_cookie = req.method() == http::Method::GET
             && !matches!(token, Some(token) if token.verify(key).is_ok());
         let set_cookie = should_set_cookie
-            .then(|| CsrfToken::generate(key).create_set_cookie_header(cookie_name));
+            .then(|| create_set_cookie_header(CsrfToken::generate(key), cookie_name));
 
         let inner = self.inner.call(req);
         SendCsrfResponseFuture { inner, set_cookie }
@@ -288,7 +305,7 @@ where
 
     fn call(&mut self, req: http::Request<Req>) -> Self::Future {
         let VerifyCsrfConfig { key, header_name } = self.config.as_ref();
-        match CsrfToken::extract_from_headers(req.headers(), header_name) {
+        match extract_from_headers(req.headers(), header_name) {
             Some(csrf_token) if csrf_token.verify(key).is_ok() => {
                 let inner = self.inner.call(req);
                 VerifyCsrfResponseFuture::Inner { inner }
