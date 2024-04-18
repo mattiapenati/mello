@@ -9,6 +9,7 @@ use parking_lot::Mutex;
 use slab::Slab;
 use tokio::sync::{Semaphore, SemaphorePermit};
 use tokio_postgres::{config::SslMode, Config as PgConfig, NoTls};
+use tokio_postgres_rustls::MakeRustlsConnect;
 
 /// An error while communicating with the Postgres server.
 pub type PgError = tokio_postgres::Error;
@@ -62,15 +63,35 @@ impl PgPool {
 
         let pg_client = match pg_client {
             Some(pg_client) => pg_client,
-            None => {
-                let (pg_client, conn) = match pg_config.get_ssl_mode() {
-                    SslMode::Disable => pg_config.connect(NoTls).await?,
-                    // TODO check db_config.get_ssl_mode()
-                    _ => todo!(),
-                };
-                tokio::spawn(conn);
-                pg_client
-            }
+            None => match pg_config.get_ssl_mode() {
+                SslMode::Disable => {
+                    let (pg_client, conn) = pg_config.connect(NoTls).await?;
+                    tokio::spawn(conn);
+                    pg_client
+                }
+                SslMode::Require => {
+                    let tls = Self::make_rustls_connect();
+                    let (pg_client, conn) = pg_config.connect(tls).await?;
+                    tokio::spawn(conn);
+                    pg_client
+                }
+                _ => {
+                    let tls = Self::make_rustls_connect();
+                    match pg_config.connect(tls).await {
+                        Ok((pg_client, conn)) => {
+                            tokio::spawn(conn);
+                            pg_client
+                        }
+                        Err(err) => {
+                            tracing::warn!("Failed to connect to Postgres with TLS: {err}");
+                            let tls = NoTls;
+                            let (pg_client, conn) = pg_config.connect(tls).await?;
+                            tokio::spawn(conn);
+                            pg_client
+                        }
+                    }
+                }
+            },
         };
 
         let inner = Arc::downgrade(&self.inner);
@@ -80,6 +101,20 @@ impl PgPool {
             pg_client: Some(pg_client),
             inner,
         })
+    }
+
+    fn make_rustls_connect() -> MakeRustlsConnect {
+        let mut roots = rustls::RootCertStore::empty();
+        let certificates =
+            rustls_native_certs::load_native_certs().expect("Failed to load platform certificates");
+        for cert in certificates {
+            roots.add(cert).unwrap();
+        }
+
+        let config = rustls::ClientConfig::builder()
+            .with_root_certificates(roots)
+            .with_no_client_auth();
+        MakeRustlsConnect::new(config)
     }
 }
 
