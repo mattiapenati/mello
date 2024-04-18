@@ -9,6 +9,7 @@ use std::{
 
 use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};
+use serde_with::{serde_as, DisplayFromStr};
 use tracing::Level;
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::{
@@ -20,32 +21,23 @@ use tracing_subscriber::{
 };
 
 /// Trace configuration.
+#[serde_as]
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct TraceConfig {
     /// Where to write events.
     pub output: TraceOutput,
     /// The minimum event level to emit.
-    pub level: TraceLevel,
+    #[serde_as(as = "DisplayFromStr")]
+    pub level: Level,
 }
 
 impl Default for TraceConfig {
     fn default() -> Self {
         Self {
             output: TraceOutput::Stderr,
-            level: TraceLevel::Info,
+            level: Level::INFO,
         }
     }
-}
-
-/// Verbosity level.
-#[derive(Clone, Copy, Debug, Deserialize, Serialize, Eq, PartialEq)]
-#[serde(rename_all = "lowercase")]
-pub enum TraceLevel {
-    Trace,
-    Debug,
-    Info,
-    Warn,
-    Error,
 }
 
 /// Define where to write the logs.
@@ -80,14 +72,6 @@ struct Trace {
 
 impl Trace {
     fn new(config: &TraceConfig) -> std::io::Result<Self> {
-        let level = match config.level {
-            TraceLevel::Trace => Level::TRACE,
-            TraceLevel::Debug => Level::DEBUG,
-            TraceLevel::Info => Level::INFO,
-            TraceLevel::Warn => Level::WARN,
-            TraceLevel::Error => Level::ERROR,
-        };
-
         let writer: Box<dyn Write + Send> = match &config.output {
             TraceOutput::Stderr => Box::new(std::io::stderr()),
             TraceOutput::Stdout => Box::new(std::io::stdout()),
@@ -101,7 +85,7 @@ impl Trace {
         let (writer, guard) = tracing_appender::non_blocking(writer);
 
         let env_filter = EnvFilter::builder()
-            .with_default_directive(Directive::from(level))
+            .with_default_directive(Directive::from(config.level))
             .with_env_var(EnvFilter::DEFAULT_ENV)
             .from_env_lossy();
         let fmt_layer = fmt::layer()

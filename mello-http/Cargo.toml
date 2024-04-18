@@ -1,0 +1,29 @@
+[package]
+name = "mello-http"
+description = "Additional layers for HTTP services"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+
+[dependencies]
+bytes.workspace = true
+cookie.workspace = true
+http.workspace = true
+hyper = { workspace = true, features = ["client", "http1"] }
+hyper-util = { workspace = true, features = ["tokio"] }
+mello-core.workspace = true
+num_cpus.workspace = true
+parking_lot.workspace = true
+pin-project-lite.workspace = true
+slab.workspace = true
+tokio.workspace = true
+tower-layer.workspace = true
+tower-service.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+claym.workspace = true
+tokio = { workspace = true, features = ["macros"] }
+tower = { workspace = true, features = ["util"] }

@@ -26,7 +26,7 @@ use pin_project_lite::pin_project;
 use tower_layer::Layer;
 use tower_service::Service;
 
-use super::{http_method_label, http_version_label};
+use super::utils::{http_method_label, http_version_label};
 
 const HTTP_SERVER_REQUEST_DURATION: &str = "http.server.request.duration";
 const HTTP_CLIENT_REQUEST_DURATION: &str = "http.client.request.duration";

@@ -18,7 +18,7 @@ use tower_service::Service;
 use tracing::{field::DisplayValue, Level, Span};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
-use super::{http_method_label, http_version_label};
+use super::utils::{http_method_label, http_version_label};
 
 // Opentelemetry semantic conventions
 const ERROR_MESSAGE: &str = "error.message";

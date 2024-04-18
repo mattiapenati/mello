@@ -1,16 +1,5 @@
-//! OpenTelemetry support.
-
-#[doc(inline)]
-pub use self::{
-    metric::Metrics,
-    tracing::{Tracing, TracingLayer},
-};
-
-pub mod metric;
-pub mod tracing;
-
 /// Returns the label for HTTP method.
-fn http_method_label(method: &http::Method) -> &'static str {
+pub(crate) fn http_method_label(method: &http::Method) -> &'static str {
     match *method {
         http::Method::CONNECT => "CONNECT",
         http::Method::DELETE => "DELETE",
@@ -26,7 +15,7 @@ fn http_method_label(method: &http::Method) -> &'static str {
 }
 
 /// Returns the label for HTTP protocol version.
-pub(super) fn http_version_label(version: &http::Version) -> Option<&'static str> {
+pub(crate) fn http_version_label(version: &http::Version) -> Option<&'static str> {
     match *version {
         http::Version::HTTP_09 => Some("0.9"),
         http::Version::HTTP_10 => Some("1.0"),
