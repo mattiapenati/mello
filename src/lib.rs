@@ -13,6 +13,9 @@ pub mod kvstorage;
 pub mod otel;
 
 #[cfg(not(target_arch = "wasm32"))]
+pub mod pg;
+
+#[cfg(not(target_arch = "wasm32"))]
 pub mod proxy;
 
 #[cfg(not(target_arch = "wasm32"))]
