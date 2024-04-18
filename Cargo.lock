@@ -760,6 +760,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "mello-core"
+version = "0.1.0"
+dependencies = [
+ "argon2",
+ "base64ct",
+ "blake2",
+ "claym",
+ "getrandom",
+ "hmac",
+ "lol_alloc",
+ "rand",
+ "rand_chacha",
+ "rand_pcg",
+ "sha2",
+ "time",
+ "wasm-bindgen",
+ "zeroize",
+]
+
+[[package]]
 name = "memchr"
 version = "2.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"

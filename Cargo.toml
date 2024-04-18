@@ -1,3 +1,6 @@
+[workspace]
+members = [".", "mello-core"]
+
 [package]
 name = "mello"
 description = "A small toolbox for fast web api prototyping"
