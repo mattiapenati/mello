@@ -9,6 +9,9 @@
 //! The default name of the cookie is `csrftoken` and it can be customized
 //! using the enviroment variable `CSRF_COOKIE_NAME`.
 //!
+//! Layers of type [`SendCsrf`] can be nested, only the innermost is applied,
+//! the others are ignored.
+//!
 //! # Verify CSRF token on server
 //!
 //! The CSRF token should be send to the server using a custom header, the
@@ -32,57 +35,13 @@ use pin_project_lite::pin_project;
 use tower_layer::Layer;
 use tower_service::Service;
 
-/// Create a new `Set-Cookie` header to send the token to the client.
-fn create_set_cookie_header(token: CsrfToken, cookie_name: &str) -> http::HeaderValue {
-    let cookie_value = token.display().to_string();
-    let set_cookie = cookie::Cookie::build((cookie_name, cookie_value))
-        .same_site(cookie::SameSite::Strict)
-        .secure(true)
-        .http_only(false)
-        .path("/")
-        .build()
-        .to_string();
-
-    http::HeaderValue::from_str(&set_cookie).expect("failed to create `Set-Cookie` header")
-}
-
-/// Extract the token from the request's cookies.
-fn extract_from_cookies(headers: &http::HeaderMap, cookie_name: &str) -> Option<CsrfToken> {
-    let cookie = headers
-        .get_all(header::COOKIE)
-        .iter()
-        .filter_map(|header| header.to_str().ok())
-        .flat_map(|header| header.split(';'))
-        .filter_map(|cookie| {
-            cookie::Cookie::parse(cookie)
-                .ok()
-                .filter(|cookie| cookie.name() == cookie_name)
-        })
-        .next()?;
-
-    cookie.value().parse().ok()
-}
-
-/// Extract the token from the request's headers.
-fn extract_from_headers(
-    headers: &http::HeaderMap,
-    header_name: &http::HeaderName,
-) -> Option<CsrfToken> {
-    headers
-        .get_all(header_name)
-        .iter()
-        .filter_map(|header| header.to_str().ok())
-        .filter_map(|header| CsrfToken::from_str(header).ok())
-        .next()
-}
-
 /// Configuration of [`SendCsrf`] middleware.
 #[derive(Debug)]
 struct SendCsrfConfig {
     /// Secret key used to sign tokens.
     key: CsrfKey,
     /// Cookie name used to send token to client.
-    cookie_name: String,
+    cookie_name: Arc<String>,
 }
 
 impl SendCsrfConfig {
@@ -95,7 +54,7 @@ impl SendCsrfConfig {
     fn new(key: &CsrfKey) -> Self {
         Self {
             key: key.clone(),
-            cookie_name: Self::default_cookie_name(),
+            cookie_name: Arc::new(Self::default_cookie_name()),
         }
     }
 
@@ -143,7 +102,8 @@ impl<S> Layer<S> for SendCsrfLayer {
 /// conditions are met:
 ///  - the request is a GET request;
 ///  - the cookie is missing or it is an invalid token;
-///  - the response is a success.
+///  - the response is a success,
+///  - the cookie is not already set by a nested service.
 #[derive(Clone, Debug)]
 pub struct SendCsrf<S> {
     inner: S,
@@ -170,8 +130,11 @@ where
         let set_cookie = should_set_cookie
             .then(|| create_set_cookie_header(CsrfToken::generate(key), cookie_name));
 
-        let inner = self.inner.call(req);
-        SendCsrfResponseFuture { inner, set_cookie }
+        SendCsrfResponseFuture {
+            inner: self.inner.call(req),
+            cookie_name: cookie_name.clone(),
+            set_cookie,
+        }
     }
 }
 
@@ -180,6 +143,7 @@ pin_project! {
     pub struct SendCsrfResponseFuture<F> {
         #[pin]
         inner: F,
+        cookie_name: Arc<String>,
         set_cookie: Option<http::HeaderValue>,
     }
 }
@@ -195,7 +159,8 @@ where
         let mut output = ready!(this.inner.poll(cx));
         if let Some(set_cookie) = this.set_cookie.take() {
             if let Ok(res) = &mut output {
-                if res.status().is_success() {
+                let cookie_name = this.cookie_name.as_str();
+                if res.status().is_success() && !set_cookie_is_present(res.headers(), cookie_name) {
                     res.headers_mut().append(header::SET_COOKIE, set_cookie);
                 }
             }
@@ -343,6 +308,61 @@ where
         }
     }
 }
+
+/// Create a new `set-cookie` header to send the token to the client.
+fn create_set_cookie_header(token: CsrfToken, cookie_name: &str) -> http::HeaderValue {
+    let cookie_value = token.display().to_string();
+    let set_cookie = cookie::Cookie::build((cookie_name, cookie_value))
+        .same_site(cookie::SameSite::Strict)
+        .secure(true)
+        .http_only(false)
+        .path("/")
+        .build()
+        .to_string();
+
+    http::HeaderValue::from_str(&set_cookie).expect("failed to create `Set-Cookie` header")
+}
+
+/// Check if the `set-cookie` header is present and contains the token for the client.
+fn set_cookie_is_present(headers: &http::HeaderMap, cookie_name: &str) -> bool {
+    headers
+        .get_all(header::SET_COOKIE)
+        .iter()
+        .filter_map(|header| header.to_str().ok())
+        .filter_map(|header| cookie::Cookie::parse(header).ok())
+        .any(|cookie| cookie.name() == cookie_name)
+}
+
+/// Extract the token from the request's cookies.
+fn extract_from_cookies(headers: &http::HeaderMap, cookie_name: &str) -> Option<CsrfToken> {
+    let cookie = headers
+        .get_all(header::COOKIE)
+        .iter()
+        .filter_map(|header| header.to_str().ok())
+        .flat_map(|header| header.split(';'))
+        .filter_map(|cookie| {
+            cookie::Cookie::parse(cookie)
+                .ok()
+                .filter(|cookie| cookie.name() == cookie_name)
+        })
+        .next()?;
+
+    cookie.value().parse().ok()
+}
+
+/// Extract the token from the request's headers.
+fn extract_from_headers(
+    headers: &http::HeaderMap,
+    header_name: &http::HeaderName,
+) -> Option<CsrfToken> {
+    headers
+        .get_all(header_name)
+        .iter()
+        .filter_map(|header| header.to_str().ok())
+        .filter_map(|header| CsrfToken::from_str(header).ok())
+        .next()
+}
+
 #[cfg(test)]
 mod tests {
     use std::convert::Infallible;
@@ -430,6 +450,25 @@ mod tests {
         let res = svc.oneshot(req).await.unwrap();
 
         assert_none!(res.headers().get(header::SET_COOKIE));
+    }
+
+    #[tokio::test]
+    async fn csrf_cookie_is_not_sent_if_already_set_by_a_nested_service() {
+        let key = CsrfKey::generate();
+        let req = http::Request::new(());
+        let cookie = create_csrf_cookie(&key);
+        let res = {
+            let inner_svc = |_: http::Request<()>| async {
+                let mut res = http::Response::new(());
+                res.headers_mut().insert(header::SET_COOKIE, cookie.clone());
+                Ok::<_, Infallible>(res)
+            };
+            let svc = SendCsrfLayer::new(&key).layer(service_fn(inner_svc));
+            svc.oneshot(req).await.unwrap()
+        };
+
+        let received_cookie = assert_some!(res.headers().get(header::SET_COOKIE));
+        assert_eq!(received_cookie, cookie);
     }
 
     #[tokio::test]
