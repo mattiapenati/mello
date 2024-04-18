@@ -10,10 +10,11 @@ use slab::Slab;
 use tokio::sync::{Semaphore, SemaphorePermit};
 use tokio_postgres::{config::SslMode, Config as PgConfig, NoTls};
 
-/// An error communicating with the Postgres server.
+/// An error while communicating with the Postgres server.
 pub type PgError = tokio_postgres::Error;
 
 /// A pool of connection to a database.
+#[derive(Clone)]
 pub struct PgPool {
     inner: Arc<Inner>,
 }
@@ -82,6 +83,7 @@ impl PgPool {
     }
 }
 
+/// A smart pointer to a connection.
 pub struct PgClient<'a> {
     #[allow(dead_code)]
     permit: SemaphorePermit<'a>,

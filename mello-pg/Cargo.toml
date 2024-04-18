@@ -1,0 +1,14 @@
+[package]
+name = "mello-pg"
+description = "Postgres utilities (based on `tokio-postgres` crate)"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+num_cpus.workspace = true
+parking_lot.workspace = true
+slab.workspace = true
+tokio.workspace = true
+tokio-postgres.workspace = true
